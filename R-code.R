@@ -9,7 +9,7 @@ library(RColorBrewer)
 library(tidyr)
 library(ggplot2)
 library(reshape2)
-
+## rrr
 
 # import  datasets
 setwd("C:/Users/mayjaikaew/R-project/raw-data")
@@ -290,5 +290,3 @@ ggplot(pet.afinn.join, aes(n , value ,color = value > 0)) +
   scale_color_manual(values = c("blue", "red"),
                      breaks = c(TRUE, FALSE))+
   theme(legend.position = "none")  # Hide the legend
-
-
