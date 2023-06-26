@@ -1,5 +1,4 @@
 # amazon-review-sentiment
-sentiment analysis on amazon review 
 
 Sentiment analysis is a powerful technique used to analyze and understand the opinions, emotions, and sentiments expressed in textual data. In this project, I focus on performing sentiment analysis on Amazon review data in the category of Pet Supplies and Grocery and Gourmet Food which consists of a subset of 2,098,325 and 1,143,860 reviews consequently spanning from May 1996 to October 2018. The data was sourced from the paper "Justifying recommendations using distantly-labeled reviews and fine-grained aspects" by Jianmo Ni, Jiacheng Li, and Julian McAuley, presented at the Empirical Methods in Natural Language Processing (EMNLP) conference in 2019.
 
