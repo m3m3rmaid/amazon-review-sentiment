@@ -10,14 +10,9 @@ library(tidyr)
 library(ggplot2)
 library(reshape2)
 
+
 # import  datasets
-
 setwd("C:/Users/mayjaikaew/R-project/raw-data")
-
-
-#Read the JSON file
-#luxury Beauty
-lux <- stream_in(file("Luxury_Beauty_5.json.gz","r"))
 
 #pet supplies 2098325 observations
 pet <- stream_in(file("Pet_Supplies_5.json.gz","r"))
@@ -40,11 +35,11 @@ write.csv(grocery.tibble, file = file.path(path, "grocery.tibble.csv"))
 
 #Basic Sentiment Analysis; focus on word level
 
-#Get stopwords from 'tidytext' package 
+## Get stopwords from 'tidytext' package 
 data(stop_words)
 stopwords <- stop_words
 
-#Cleaning data
+# Cleaning data
 #remove  stopwords from data frame and unnest words into token separately
 lux.nosw <- lux.tibble %>%  
   unnest_tokens(output = "words", input = "text") %>% 
@@ -60,7 +55,40 @@ gro.nosw <- grocery.tibble %>%
   anti_join(stop_words, by = c("words" = "word"))
 
 
-#by = c("words" = "word"). This ensures that the "words" column from the unnest_tokens() output matches the "word" column from the stop_words data frame.
+# Which words appear most frequently in each category?
+
+#grocery product
+gro_word_count <- gro.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  arrange(-n)
+
+wordcloud(
+  gro_word_count$words,
+  gro_word_count$n, 
+  random.order=FALSE,
+  max.words = 200,
+  rot.per=0.2,
+  scale = c(4, 0.1),
+  colors=brewer.pal(8, "Dark2"),
+  use.r.layout=TRUE)
+
+#pet supplies
+pet_word_count <- pet.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  arrange(-n)
+
+wordcloud(
+  pet_word_count$words,
+  pet_word_count$n, 
+  random.order=FALSE,
+  max.words = 200,
+  rot.per=0.3,
+  scale = c(6, 0.1),
+  colors=brewer.pal(8, "Dark2"),
+  use.r.layout=TRUE)
+
 
 #Get words from all sentiments
 get_sentiments("bing")
@@ -69,18 +97,15 @@ get_sentiments("afinn")
 
 # Bing, classifies words from each sentence into positive and negative sentiment.
 
-
-
 #Apply sentiment to words
-lux.bing <- lux.nosw %>% 
-  inner_join(get_sentiments("bing"), by = c("words" = "word")) %>% count(words, sentiment, sort = TRUE)
-
 pet.bing <- pet.nosw %>% 
   inner_join(get_sentiments("bing"), by = c("words" = "word")) %>% count(words, sentiment, sort = TRUE)
+
 
 gro.bing <- gro.nosw %>% 
   inner_join(get_sentiments("bing"), by = c("words" = "word")) %>% count(words, sentiment, sort = TRUE)
 
+#get most popular top 10 positive and negative words found.
 
 pet.bing.top <- pet.bing %>%
   group_by(sentiment) %>%
@@ -92,6 +117,7 @@ gro.bing.top <-gro.bing %>%
   top_n(10) %>% 
   mutate(dataset= 'grocery')
 
+#tidy up for plotting the result
 bing.combind <- rbind(pet.bing.top,gro.bing.top)
 
 
@@ -211,18 +237,18 @@ ggplot(data = nrc.combined, aes(x = "", y = percentage, fill = sentiment)) +
   theme(legend.position = "bottom") +
   facet_wrap(~ dataset, scales = "free_y")
 
-#conslusion: pet has more percentage of sum of  negative ,hear,anger and disgust 
+#It shown that pet supplies has more percentage of negative-group words than grocery product.
 
-#Afinn by Finn Arup Nielsen, assigns words with a score that runs between -5 and 5, with negative scores indicating negative sentiment and positive scores indicating positive sentiment.
+#Analysis by Afinn Lexicon
 
 #Apply sentiment to words
 gro.afinn <- gro.nosw %>% 
   inner_join(get_sentiments("afinn"),by = c("words" = "word"))
 
-
 pet.afinn <- pet.nosw %>% 
   inner_join(get_sentiments("afinn"),by = c("words" = "word"))
-#counting for grocery 
+
+#Counting on how many words have found 
 gro.afinn.count <- gro.afinn %>% count(words)
 
 gro.afinn.join <- gro.afinn %>%
@@ -231,7 +257,7 @@ gro.afinn.join <- gro.afinn %>%
 gro.afinn.cat <- gro.afinn.join %>%
   mutate(sentiment_category = ifelse(value > 0, "positive",
                                      ifelse(value < 0, "negative", "neutral")))
-#counting for pet product
+#Afinn on pet product
 pet.afinn.count <- pet.afinn %>% count(words)
 
 pet.afinn.join <- pet.afinn %>%
@@ -241,16 +267,8 @@ pet.afinn.cat <- pet.afinn.join %>%
   mutate(sentiment_category = ifelse(value > 0, "positive",
                                      ifelse(value < 0, "negative", "neutral")))
 
-#tidy up dataset
-pet.test <- pet.afinn.join %>% mutate(dataset = "Pet")
-gro.test <- pet.afinn.join %>% mutate(dataset = "Gro")
-afinn.combined.data <- bind_rows(pet.test, gro.test)
-
-
 
 #Visualization in box plot to compare two data
-
-
 ggplot(gro.afinn.join, aes(n , value ,color = value > 0)) +
   geom_point() +
   xlab("Number of Reviews") +
@@ -273,39 +291,4 @@ ggplot(pet.afinn.join, aes(n , value ,color = value > 0)) +
                      breaks = c(TRUE, FALSE))+
   theme(legend.position = "none")  # Hide the legend
 
-#Interpreting the Results
-
-# Visual WordCloud from unnest token of raw no-stopwords data
-
-#total words in word cloud grocery product
-gro_word_count <- gro.nosw %>% 
-  group_by(words) %>% 
-  count() %>% 
-  arrange(-n)
-
-wordcloud(
-  gro_word_count$words,
-  gro_word_count$n, 
-  random.order=FALSE,
-  max.words = 200,
-  rot.per=0.2,
-  scale = c(4, 0.1),
-  colors=brewer.pal(8, "Dark2"),
-  use.r.layout=TRUE)
-
-#total words in word cloud pet product
-pet_word_count <- pet.nosw %>% 
-  group_by(words) %>% 
-  count() %>% 
-  arrange(-n)
-
-wordcloud(
-  pet_word_count$words,
-  pet_word_count$n, 
-  random.order=FALSE,
-  max.words = 200,
-  rot.per=0.3,
-  scale = c(6, 0.1),
-  colors=brewer.pal(8, "Dark2"),
-  use.r.layout=TRUE)
 
