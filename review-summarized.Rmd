@@ -1,0 +1,440 @@
+---
+title: "Sentiment Analysis of Amazon review data in category of Pet Supplies and Grocery and Gourmet Food"
+output: 
+  pdf_document: default
+---
+
+# Summary
++ We are preparing to conduct a sentiment analysis on Amazon product reviews using two datasets: "Pet Supplies" and "Grocery and Gourmet Food." The first dataset comprises a subset of 2,098,325 reviews, while the second dataset consists of 1,143,860 reviews. Both datasets encompass reviews collected over a time span from May 1996 to October 2018.
+
+
++ We conduct a sentiment analysis at the word level, where we will exclude stopwords and generate word clouds to visualize the most commonly used words within each category. This approach will aid in comprehending the prevalent words associated with various categories, such as product, emotions, price, location, etc. By doing so, we aim to gain insights into the most popular terms within each category.
+
++ We will use various lexicons, including "Bing," "NRC," and "AFINN." Bing lexicon  classifies words into positive and negative sentiments. We will find the top 10 most frequently used positive and negative words for each dataset and visualize the results.
+
++ Using the NRC lexicon is helpful in identifying and categorizing the emotions expressed in text . We will visualize the percentage of each sentiment category for both datasets. Moreover,  AFINN lexicon assigns a numeric score (sentiment score) to individual words based on their polarity or sentiment orientation.
+
++ The reasons of using  multiple sentiment lexicons, such as Bing, NRC, and AFINN are comprehensive sentiment analysis, handling ambiguity and reducing bias. Employing multiple lexicons can help mitigate such biases and provide a more balanced sentiment evaluation.
+
+
+# Overview and Results
+
+## Sentiment analysis at word level.
+
+  Conducting a basic sentiment analysis at the word level revealed the most frequently used words in each category. For grocery products, the top 10 commonly mentioned words include taste, flavor, love, coffee, product, tea, price, buy, time, and sugar. This suggests that taste is the primary factor consumers consider when it comes to grocery items, with coffee and tea being the most popular products mentioned. Price ranks 6th, indicating its influence on consumer buying decisions.
+
+  Similarly, for pet supplies, the top 10 frequently used words are dog, love, dogs, cat, food, product, cats, loves, time, and easy. This analysis indicates that the most popular pet supplies are related to dogs and cats.
+
+  These insights could provide valuable information for businesses to understand consumer preferences and tailor their strategies accordingly, emphasizing the importance of taste for grocery products and the popularity of dog and cat-related supplies in the pet industry.
+
+
+```{r package, echo = FALSE, warning=FALSE, message=FALSE}
+
+library(tidyverse)
+library(syuzhet)
+library(tidytext)
+library(jsonlite)
+library(dplyr)
+library(wordcloud)
+library(RColorBrewer)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+
+```
+
+
+
+```{r import,echo = FALSE, warning=FALSE, message=FALSE}
+# Set the working directory to the location of the datasets
+setwd("C:/Users/mayjaikaew/R-project/raw-data")
+
+# Import the 'Pet Supplies' dataset
+pet <- stream_in(file("Pet_Supplies_5.json.gz", "r"))
+
+# Import the 'Grocery and Gourmet Food' dataset
+grocery <- stream_in(file("Grocery_and_Gourmet_Food_5.json.gz", "r"))
+```
+
+```{r prepare, echo = FALSE, warning=FALSE, message=FALSE}
+# Convert review texts to lowercase and create tibbles
+pet.tibble <- tibble(text = str_to_lower(pet$reviewText))
+grocery.tibble <- tibble(text = str_to_lower(grocery$reviewText))
+
+
+#I will write the tibbles to CSV files for further analysis or future use.
+
+# Specify the path to save the CSV files
+path <- "C:/Users/mayjaikaew/R-project/raw-data"
+
+# Write the 'pet' tibble to CSV
+write.csv(pet.tibble, file = file.path(path, "pet.tibble.csv"))
+
+# Write the 'grocery' tibble to CSV
+write.csv(grocery.tibble, file = file.path(path, "grocery.tibble.csv"))
+
+# Get stopwords from 'tidytext' package 
+data(stop_words)
+stopwords <- stop_words
+
+# Cleaning data - Remove stopwords and unnest words into tokens separately
+
+pet.nosw <- pet.tibble %>%  
+  unnest_tokens(output = "words", input = "text") %>% 
+  anti_join(stop_words, by = c("words" = "word"))
+
+gro.nosw <- grocery.tibble %>%  
+  unnest_tokens(output = "words", input = "text") %>% 
+  anti_join(stop_words, by = c("words" = "word"))
+
+```
+
+
+```{r basic sentiment,echo = FALSE, warning=FALSE, message=FALSE}
+#grocery product
+
+gro_total_wordcount <- nrow(gro.nosw)
+
+#count for word cloud
+gro_wc <- gro.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  arrange(-n)
+
+#calculate as percentage
+gro_word_count <- gro.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  rename(count = n) %>%  # Renaming the 'n' column to 'count' 
+  mutate(percentage = round(count * 100 / gro_total_wordcount, 2)) %>% 
+  arrange(-percentage) %>% 
+  head(10)
+
+#pet supplies
+
+pet_total_wordcount <- nrow(pet.nosw)
+
+#count for word cloud
+pet_wc <- pet.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  arrange(-n)
+
+#calculate as percentage
+pet_word_count <- pet.nosw %>% 
+  group_by(words) %>% 
+  count() %>% 
+  rename(count = n) %>%  # Renaming the 'n' column to 'count'
+  mutate(percentage = round(count *100/ pet_total_wordcount , 2)) %>% 
+  arrange(-count) %>% 
+  head(10)
+```
+
+```{r sample, echo=FALSE, results='asis'}
+
+#| layout-ncol: 2
+#| tbl-cap: "Tables"
+#| tbl-subcap: ["Grocery products", "Pet Supplies"]
+
+
+# table on the Right
+kable(pet_word_count,caption = "Pet Supplies")
+
+# table on the left
+kable(gro_word_count,caption = "Grocery products")
+
+```
+
+Table 1: Top 10 Most Popular Sentiments Found in Each categories.
+
+
+```{r,echo=FALSE}
+wordcloud(
+  gro_wc$words,
+  gro_wc$n, 
+  random.order=FALSE,
+  max.words = 100,
+  rot.per=0.2,
+  scale = c(3, 0.8),
+  colors=brewer.pal(8, "Dark2"),
+  use.r.layout=TRUE)
+```
+Figure 1 : As you can see, words like “taste,” “love,” “flavor”, “product” and "coffee" stand out since they were used more frequently in the grocery's product review.
+
+```{r,echo=FALSE}
+wordcloud(
+  pet_wc$words,
+  pet_wc$n, 
+  random.order=FALSE,
+  max.words = 100,
+  rot.per=0.3,
+  scale = c(3, 0.8),
+  colors=brewer.pal(8, "Dark2"),
+  use.r.layout=TRUE)
+```
+Figure 2: Dogs emerge as the most frequent words, followed by 'love,' 'cat,' 'food,' and 'products,' as evident from the data.
+
+
+## Sentiment Analysis using Bing Lexicon
+
+Using the Bing lexicon, we categorize words into positive and negative sentiments for each dataset.  This binary classification simplifies sentiment analysis by providing a straightforward approach to categorizing words based on their sentiment orientation. The analysis aims to identify the top 10 most frequently used positive and negative words in both datasets. 
+
+```{r, include = FALSE, echo = FALSE}
+# Apply sentiment to words for 'pet' and 'grocery' datasets
+pet.bing <- pet.nosw %>% 
+  inner_join(get_sentiments("bing"), by = c("words" = "word")) %>% 
+  count(words, sentiment, sort = TRUE)
+
+gro.bing <- gro.nosw %>% 
+  inner_join(get_sentiments("bing"), by = c("words" = "word")) %>% 
+  count(words, sentiment, sort = TRUE)
+
+```
+
+```{r, echo=FALSE, warning= FALSE,include=FALSE}
+pet.bing.top <- pet.bing %>%
+  group_by(sentiment) %>%
+  top_n(10)
+
+```
+
+
+```{r,include=FALSE,echo=FALSE,message=FALSE}
+gro.bing.top <-gro.bing %>%
+  group_by(sentiment) %>%
+  top_n(10) 
+```
+
+```{r,echo=FALSE,message=FALSE}
+#| layout-ncol: 2
+#| tbl-cap: "Bing Lexicon Analysis"
+#| tbl-subcap: ["Grocery products", "Pet Supplies"]
+
+
+# table on the Right
+kable(pet.bing.top,caption = "Pet Supplies")
+
+# table on the left
+kable(gro.bing.top,caption = "Grocery products")
+```
+
+
+
+Table 2: shows the results of sentiment analysis using the Bing Lexicon for pet supplies and grocery products. 
+
+
+
+```{r test ,echo=FALSE,message=FALSE}
+# Assuming you already have the 'pet.bing.top' and 'gro.bing.top' data frames or tables.
+
+# Define the table caption and subcaption
+caption <- "Bing Lexicon Analysis"
+subcaptions <- c("Grocery products", "Pet Supplies")
+
+# Create the first table on the left
+table_left <- kable(gro.bing.top, caption = "Grocery products") %>%
+  kable_styling(full_width = FALSE)
+
+# Create the second table on the right
+table_right <- kable(pet.bing.top, caption = "Pet Supplies") %>%
+  kable_styling(full_width = FALSE)
+
+
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+#tidy up for plotting the result
+pet.bing.top.vis <- pet.bing %>%
+  group_by(sentiment) %>%
+  top_n(10) %>% 
+  mutate(dataset= 'pet')
+
+gro.bing.top.vis <-gro.bing %>%
+  group_by(sentiment) %>%
+  top_n(10) %>% 
+  mutate(dataset= 'grocery')
+
+bing.combind <- rbind(pet.bing.top.vis,gro.bing.top.vis)
+
+bing.combind %>%
+  ungroup() %>%
+  mutate(words = reorder(words, n)) %>%
+  arrange(dataset, sentiment, desc(n)) %>%
+  ggplot(aes(words, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ dataset + sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment", x = NULL) +
+  coord_flip()
+
+```
+Figure 3: The bar chart illustrates the negative sentiments for pet supplies, where issues related to 'tank,' 'smell,' 'hard,' and 'expensive' were frequently mentioned. Similarly, for grocery products, negative feedback centered around attributes such as 'hard,' 'bad,' 'dark,' 'expensive,' 'fat,' and 'bitter.' Conversely, in the positive sentiment category for grocery products, customers expressed admiration for items described as 'love,' 'delicious,' 'nice,' 'sweet,' and 'fresh.' 
+
+
+
+## Sentiment Analysis using NRC Lexicon
+
+Using the NRC lexicon is helpful in identifying and categorizing the emotions expressed in text.  Leveraging this lexicon enables the identification and categorization of emotions expressed in customer feedback and reviews for these specific domains. By analyzing a wide range of emotions, including joy, sadness, anger, trust, and more, we can gain valuable insights into customers' emotional responses towards various products in both categories.
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+# Apply sentiment to words for 'pet' and 'grocery' datasets
+gro.nrc <- gro.nosw %>% 
+    inner_join(get_sentiments("nrc"), by = c("words" = "word"))
+
+pet.nrc <- pet.nosw %>% 
+  inner_join(get_sentiments("nrc"), by = c("words" = "word"))
+
+#sum number of each sentiment
+gro.nrc.ws <- gro.nrc %>% 
+  group_by(sentiment) %>% 
+  summarise(n=n()) %>% 
+  arrange(n) %>% 
+  mutate(sentiment = reorder(sentiment, n)) 
+
+pet.nrc.ws <- pet.nrc %>% 
+  group_by(sentiment) %>% 
+  summarise(n=n()) %>% 
+  arrange(n) %>% 
+  mutate(sentiment = reorder(sentiment, n)) 
+ 
+# Calculate the total number of sentiments
+gro.total <- sum(gro.nrc.ws$n)
+pet.total <- sum(pet.nrc.ws$n)
+
+# Calculate the percentage of each sentiment
+gro.nrc.ws.perc <- gro.nrc.ws %>%
+  mutate(percentage = round(n / gro.total * 100,2)) %>% 
+  mutate(dataset = 'grocery') %>%
+  arrange(desc(percentage))
+
+pet.nrc.ws.perc <- pet.nrc.ws %>%
+  mutate(percentage = round(n / pet.total * 100,2)) %>% 
+  mutate(dataset = 'pet') %>% 
+  arrange(desc(percentage))
+```
+
+```{r,echo=FALSE,message=FALSE}
+#| layout-ncol: 2
+#| tbl-cap: "NRC Lexicon Analysis"
+#| tbl-subcap: ["Grocery products", "Pet Supplies"]
+
+
+# table on the Right
+kable(pet.nrc.ws.perc,caption = "Pet Supplies")
+
+# table on the left
+kable(gro.nrc.ws.perc,caption = "Grocery products")
+
+```
+
+Table 3:displays the outcomes of sentiment analysis conducted with the NRC Lexicon for both pet supplies and grocery products.
+
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE}
+#visualization in bar chart
+nrc.combined <- rbind(gro.nrc.ws.perc,pet.nrc.ws.perc)
+ggplot(data= nrc.combined ,aes(x=sentiment,y=n ,label=n)) + 
+  geom_bar(stat="identity") + 
+  coord_flip() +
+  theme_minimal() +
+  facet_wrap(~ dataset, scales = "free_y")+
+  labs(title = "NRC Sentiment Analysis Comparison between Grocery Products and Pet Supplies' reviews")+
+  theme(plot.title = element_text(size = 10))
+
+```
+
+Figure 4: The bar chart illustrates a comparison of emotional responses towards various products in the NRC Sentiment Analysis for reviews of Grocery Products and Pet Supplies.
+
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE}
+#stacked bar chart in percentage
+ggplot(data = nrc.combined, aes(x = "", y = percentage, fill = sentiment)) +
+  geom_bar(stat = "identity", color = "white") +
+  geom_text(aes(label = paste0(round(percentage, 1), "%")),
+            position = position_stack(vjust = 0.5), size = 3) +  # Adjust the label size here
+  theme_minimal() +
+  labs(title = "NRC Sentiment Analysis Comparison 
+       between Grocery and Pet product review") +
+  theme(legend.position = "bottom",
+        axis.text = element_text(size = 8)) +  # Adjust the axis text size here
+  facet_wrap(~ dataset, scales = "free_y")
+
+
+```
+
+Figure 5: The stacked bar chart visually presents the proportions of the top 10 emotional expressions in each product category.
+
+  Based on the analysis using the NRC lexicon, it was observed that grocery products had a significant positive sentiment, accounting for 29.00% of the overall sentiment. Additionally, emotions of joy (15.05%), trust (13.74%), and anticipation (10.79%) were also prevalent in the context of grocery products. However, it is noteworthy that there was a noticeable negative sentiment of 9.47%.
+
+  On the other hand, pet supplies displayed a positive sentiment of 24.26%, along with trust (14.33%), joy (12.29%), and anticipation (9.66%). Surprisingly, pet supplies also exhibited a comparatively higher negative sentiment of 13.63%.
+
+
+## Sentiment Analysis using Afinn Lexicon
+
+The AFINN lexicon utilizes a numeric score to represent the sentiment orientation of individual words, indicating their polarity. The simplicity, efficiency, and adaptability to various domains make AFINN a compelling choice for sentiment analysis. Although it may not encompass the full complexity of sentiment analysis as advanced techniques do, AFINN's user-friendliness and ability to yield valuable sentiment insights make it a valuable tool.
+
+
+```{r Afinn, echo=FALSE, message=FALSE,warning=FALSE}
+# Apply sentiment to words for 'pet' and 'grocery' datasets
+gro.afinn <- gro.nosw %>% 
+  inner_join(get_sentiments("afinn"), by = c("words" = "word"))
+
+pet.afinn <- pet.nosw %>% 
+  inner_join(get_sentiments("afinn"), by = c("words" = "word"))
+
+#Counting on how many words have found 
+gro.afinn.count <- gro.afinn %>% count(words)
+
+gro.afinn.join <- gro.afinn %>%
+  inner_join(gro.afinn.count, by = "words")
+
+gro.afinn.cat <- gro.afinn.join %>%
+  mutate(sentiment_category = ifelse(value > 0, "positive",
+                                     ifelse(value < 0, "negative", "neutral")))
+
+#Afinn on pet product
+pet.afinn.count <- pet.afinn %>% count(words)
+
+pet.afinn.join <- pet.afinn %>%
+  inner_join(pet.afinn.count, by = "words")
+
+pet.afinn.cat <- pet.afinn.join %>%
+  mutate(sentiment_category = ifelse
+         (value > 0, "positive",
+           ifelse(value < 0, "negative", "neutral")))
+
+```
+
+
+
+```{r, echo=FALSE, message=FALSE,warning=FALSE }
+ggplot(gro.afinn.join, aes(n , value ,color = value > 0)) +
+  geom_point() +
+  xlab("Number of Reviews") +
+  ylab("Sentiment Score") +
+  ggtitle("AFINN Sentiment Analysis Grocery and Gourmet products") +
+  theme_bw()+
+  xlim(0,3500)+
+  scale_color_manual(values = c("blue", "red"),
+                     breaks = c(TRUE, FALSE))+
+  theme(legend.position = "none")  # Hide the legend
+  
+ggplot(pet.afinn.join, aes(n , value ,color = value > 0)) +
+  geom_point() +
+  xlab("Number of Reviews") +
+  ylab("Sentiment Score") +
+  ggtitle("AFINN Sentiment Analysis Pet supplies") +
+  theme_bw()+
+  xlim(0,3500)+
+  scale_color_manual(values = c("blue", "red"),
+                     breaks = c(TRUE, FALSE))+
+  theme(legend.position = "none")  # Hide the legend
+```
+
+Figure 6: The AFINN lexicon analysis is visualized through a scatter plot, comparing the sentiment scores of the two datasets.
+
+## Conclusion and Suggestion
+  In this project, we performed sentiment analysis on product reviews for "Pet Supplies" and "Grocery and Gourmet Food" using different lexicons. The analysis provided insights into customer sentiments and the most frequently used words associated with each sentiment category.   
+
+  These findings indicate that while both grocery and pet supplies evoke positive emotions, there is room for improvement in addressing the negative sentiments associated with pet supplies. It is advisable to conduct further analysis to identify the specific aspects contributing to the negative sentiment, which can subsequently lead to enhancing product offerings and service quality to better meet customer expectations.
